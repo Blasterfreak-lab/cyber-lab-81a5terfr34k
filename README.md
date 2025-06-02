@@ -26,3 +26,22 @@ Meine Lab-Umgebung spiegelt mein persönliches Ziel wider: Remote im Bereich IT-
 ## Ziel
 
 Praxisorientiertes Lernen, Beweis meiner Fähigkeiten und Grundlage für Bewerbungen.
+
+## Technisches Profil / Toolstack
+
+### Betriebssysteme & Plattformen
+- Windows 10/11 (inkl. AD & Server)
+- Kali Linux / Ubuntu
+- Hyper-V (Testlabore, Netzwerksimulationen)
+
+### Schwerpunkte & Themenfelder
+- Netzwerkangriffe & -verteidigung (WSD, SMB, LLMNR, AD)
+- Automatisierung mit PowerShell & Python
+- Schwachstellenanalyse, Post-Exploitation, Privilege Escalation
+- Protokollanalyse (Wireshark, tcpdump)
+
+### Tools & Frameworks
+- Metasploit Framework, BloodHound, Mimikatz
+- Burp Suite, Nmap, Hydra
+- Windows Defender / Exploit Guard / Event Logs
+- GitHub, GitHub Desktop, Markdown
