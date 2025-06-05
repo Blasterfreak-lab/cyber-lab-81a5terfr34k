@@ -16,35 +16,31 @@ Meine Lab-Umgebung spiegelt mein persönliches Ziel wider: Remote im Bereich IT-
 - Um Schwachstellen in Windows-Netzwerken (z. B. WSD, SMB, AD) aufzudecken und abzusichern
 - Um meine Fortschritte öffentlich zu dokumentieren und meine Fähigkeiten sichtbar zu machen
 
-## Struktur
+## Technisches Profil
 
-- **WSD-Exploit**: Angriffssimulation über Windows WSD-Schnittstellen
-- **ActiveDirectory-Angriffe**: Angriffe auf AD-Infrastruktur
-- **Scripts**: PowerShell- und Python-Tools zur Analyse und Automatisierung
-- **Reports**: Dokumentationen zu meinen Tests
+### Betriebssysteme & Plattformen
+- Windows 10/11 (inkl. Hyper-V-Labore)
+- Kali Linux / Ubuntu
+
+### Tools & Frameworks
+- Metasploit, BloodHound, Nmap, Mimikatz
+- PowerShell, GitHub, Event Viewer
+- Defender / Exploit Guard
+
+### Schwerpunkte
+- Netzwerkangriffe (SMB, WSD, LLMNR)
+- Active Directory Enumeration & Angriffe
+- Automatisierte Payload-Ausführung über INF, PS, SMB
 
 ## Ziel
 
 Praxisorientiertes Lernen, Beweis meiner Fähigkeiten und Grundlage für Bewerbungen.
 
-## Technisches Profil / Toolstack
+## Screenshots
 
-### Betriebssysteme & Plattformen
-- Windows 10/11 (inkl. AD & Server)
-- Kali Linux / Ubuntu
-- Hyper-V (Testlabore, Netzwerksimulationen)
+### PowerShell: Defender-Skript Test
 
-### Schwerpunkte & Themenfelder
-- Netzwerkangriffe & -verteidigung (WSD, SMB, LLMNR, AD)
-- Automatisierung mit PowerShell & Python
-- Schwachstellenanalyse, Post-Exploitation, Privilege Escalation
-- Protokollanalyse (Wireshark, tcpdump)
-
-### Tools & Frameworks
-- Metasploit Framework, BloodHound, Mimikatz
-- Burp Suite, Nmap, Hydra
-- Windows Defender / Exploit Guard / Event Logs
-- GitHub, GitHub Desktop, Markdown
+![Defender-Test](Defender_Deaktivieren_scriptausführung_aktivieren.png)
 
 ⚠️ Hinweis: Der Defender-Dienst `WinDefend` ist ab Windows 10/11 ein „Protected Process“.  
 Selbst mit Adminrechten und deaktiviertem Tamper Protection lässt sich dieser nicht stoppen.  
