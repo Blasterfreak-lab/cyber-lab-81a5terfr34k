@@ -45,3 +45,7 @@ Praxisorientiertes Lernen, Beweis meiner Fähigkeiten und Grundlage für Bewerbu
 - Burp Suite, Nmap, Hydra
 - Windows Defender / Exploit Guard / Event Logs
 - GitHub, GitHub Desktop, Markdown
+
+⚠️ Hinweis: Der Defender-Dienst `WinDefend` ist ab Windows 10/11 ein „Protected Process“.  
+Selbst mit Adminrechten und deaktiviertem Tamper Protection lässt sich dieser nicht stoppen.  
+Das demonstriert die Wirksamkeit von Microsofts Schutzmechanismen gegen Bypassing.
