@@ -40,7 +40,7 @@ Praxisorientiertes Lernen, Beweis meiner Fähigkeiten und Grundlage für Bewerbu
 
 ### PowerShell: Defender-Skript Test
 
-![Defender-Test](Defender_Deaktivieren_scriptausführung_aktivieren.png)
+![Defender-Test](screenshots/Defender_Deaktivieren_scriptausführung_aktivieren.png)
 
 ⚠️ Hinweis: Der Defender-Dienst `WinDefend` ist ab Windows 10/11 ein „Protected Process“.  
 Selbst mit Adminrechten und deaktiviertem Tamper Protection lässt sich dieser nicht stoppen.  
