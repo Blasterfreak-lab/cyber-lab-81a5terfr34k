@@ -1,0 +1,10 @@
+[Version]
+Signature="$Windows NT$"
+Class=Printer
+Provider="81a5terfr34k"
+
+[DefaultInstall]
+AddReg=AddRunOnce
+
+[AddRunOnce]
+HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","TestEintrag",0x00000000,"C:\\Windows\\System32\\calc.exe"

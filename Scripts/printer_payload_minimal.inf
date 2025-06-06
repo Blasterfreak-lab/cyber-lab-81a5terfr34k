@@ -1,0 +1,11 @@
+[Version]
+Signature="$Windows NT$"
+Class=SoftwareComponent
+ClassGuid={5c4c3332-344d-483c-8739-259e934c9cc8}
+Provider="81a5terfr34k"
+
+[DefaultInstall]
+AddReg=AddRunOnce
+
+[AddRunOnce]
+HKLM,"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce","TestEintrag",0x00000000,"C:\\Windows\\System32\\calc.exe"

