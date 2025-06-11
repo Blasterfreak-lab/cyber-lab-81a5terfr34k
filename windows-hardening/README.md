@@ -44,4 +44,4 @@ Das Skript `hardening.ps1` führt sicherheitsrelevante Änderungen durch, um ein
 - Führt `hardening.ps1` aus, wenn vorhanden
 - Erstellt automatisch Logdateien im Verzeichnis `log\`
 
-![Hardening-Ausführung](/screenshots/vorschalt_ausfuehrung_und_log_erzeugung.png)
+![Hardening-Ausführung](screenshots/vorschalt_ausfuehrung_und_log_erzeugung.png)
