@@ -27,16 +27,6 @@ Das Skript `hardening.ps1` führt sicherheitsrelevante Änderungen durch, um ein
 
 ---
 
-## 📦 Dateiübersicht
-
-```bash
-/windows-hardening/
-├── hardening.ps1        # PowerShell-Hardening-Skript
-├── README.md            # Diese Dokumentation
-└── screenshots/         # Eigene Beweise (Screenshots, optional)
-
----
-
 ### Vorschalt-Hardening
 
 - Führt vorbereitende Sicherheitseinstellungen durch
@@ -45,3 +35,15 @@ Das Skript `hardening.ps1` führt sicherheitsrelevante Änderungen durch, um ein
 - Erstellt automatisch Logdateien im Verzeichnis `log\`
 
 ![Hardening-Ausführung](screenshots/vorschalt_ausfuehrung_und_log_erzeugung.png)
+
+---
+
+## 📦 Dateiübersicht
+
+```bash
+/windows-hardening/
+├── hardening.ps1        # PowerShell-Hardening-Skript
+├── README.md            # Diese Dokumentation
+└── screenshots/         # Eigene Beweise (Screenshots, optional)
+
+
