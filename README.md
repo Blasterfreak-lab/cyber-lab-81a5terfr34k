@@ -7,7 +7,7 @@ Hier dokumentiere ich meine Projekte, Skripte, Exploits und Analysen.
 
 Ich bin angehender Cybersecurity-Spezialist mit einem Hintergrund in Anwendungsentwicklung und Systemadministration.  
 Ich lerne praxisorientiert, analysiere reale Angriffsmethoden und entwickle automatisierte Szenarien, um daraus Verteidigungsstrategien abzuleiten.  
-Meine Lab-Umgebung spiegelt mein persönliches Ziel wieder: Remote im Bereich IT-Security tätig zu werden – fokussiert, lernbereit und mit klarem Antrieb.
+Meine Labor-Umgebung spiegelt mein persönliches Ziel wieder: Remote im Bereich IT-Security tätig zu werden – fokussiert, lernbereit und mit klarem Antrieb.
 
 ## Warum dieses Lab?
 
