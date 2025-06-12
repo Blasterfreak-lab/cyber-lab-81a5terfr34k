@@ -34,7 +34,7 @@ Meine Lab-Umgebung spiegelt mein persönliches Ziel wider: Remote im Bereich IT-
 
 ## Ziel
 
-Praxisorientiertes Lernen, Beweis meiner Fähigkeiten und Grundlage für Bewerbungen.
+Praxisorientiertes Lernen, Nachweis meiner Fähigkeiten und Grundlage für Bewerbungen.
 
 ## Screenshots
 
