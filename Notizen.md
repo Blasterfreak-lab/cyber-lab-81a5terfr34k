@@ -64,7 +64,8 @@ msf6> exploit -j
    browsable = yes
    read only = no
    guest ok = yes
---> zusätzlich im [global]-Block ergänzen:
+   
+[global]-Block ergänzen:
    map to guest = Bad User
 ````
 
