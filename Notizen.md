@@ -1,12 +1,7 @@
 # Notizen – 81a5terfr34k
-
----
-
 ## Windows: 
 
----
-
-### Richtlinien mit Powershell Befehlen ändern 
+### Richtlinien mit Powershell Befehlen ändern:
 - setzen (SET) 
 - Anzeigen (Get) 
 
