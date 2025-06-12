@@ -19,7 +19,7 @@
 
 ---
 
---> Script ausführen mit: .\<scriptname>.ps1
+--> Script ausführen mit: `.\<scriptname>.ps1`
 
 ---
 
