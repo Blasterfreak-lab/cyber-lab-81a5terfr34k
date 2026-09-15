@@ -55,7 +55,7 @@ public class MainActivity extends Activity {
 
         TextView title = text("Maler Aufmaß & Kalkulation", 24, true);
         root.addView(title);
-        root.addView(text("Foto aufnehmen oder auswählen, KI-Beobachtungen kontrollieren und anschließend sichere Messwerte in die Kalkulation übernehmen.", 15, false));
+        root.addView(text("Foto analysieren, sichere Messwerte bestätigen und automatisch in die Kalkulation übernehmen.", 15, false));
 
         preview = new ImageView(this);
         preview.setAdjustViewBounds(true);
@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
         root.addView(analyze);
         analyze.setOnClickListener(v -> analyzeImage());
 
-        root.addView(section("Raumdaten – manuell prüfen"));
+        root.addView(section("Raumdaten – sichere Messwerte"));
         addNumber(root, "grundflaeche", "Grundfläche m²", "50");
         addNumber(root, "raumumfang", "Raumumfang m", "30");
         addNumber(root, "raumhoehe", "Raumhöhe m", "2.5");
@@ -107,6 +107,11 @@ public class MainActivity extends Activity {
         addNumber(root, "q3_wandabbruch", "Q3-Endspachtelung betroffene Flächen m²", "0");
         addNumber(root, "q4_wandabbruch", "Q4-Endspachtelung betroffene Flächen m²", "0");
 
+        Button calculate = button("Sichere Messwerte berechnen & übernehmen");
+        root.addView(calculate);
+        calculate.setOnClickListener(v -> calculateConfirmedQuantities());
+        root.addView(text("Die Berechnung ist deterministisch: Der Server validiert die bestätigten Werte und berechnet Wandflächen ohne KI-Schätzung.", 13, false));
+
         TextView qLabel = text("Geplante Endqualität", 14, true);
         root.addView(qLabel);
         quality = new Spinner(this);
@@ -118,7 +123,7 @@ public class MainActivity extends Activity {
         root.addView(export);
         export.setOnClickListener(v -> exportExcel());
 
-        status = text("Bereit. Für die KI-Analyse muss Tailscale verbunden sein.", 14, false);
+        status = text("Bereit. Für KI und Mengenberechnung muss Tailscale verbunden sein.", 14, false);
         root.addView(status);
         return scroll;
     }
@@ -140,7 +145,7 @@ public class MainActivity extends Activity {
     }
 
     private void applyAnalysis(JSONObject r) {
-        StringBuilder out = new StringBuilder("KI-Beobachtungen – keine Mengen automatisch übernommen:\n\n");
+        StringBuilder out = new StringBuilder("KI-Beobachtungen – keine Mengen aus dem Foto übernommen:\n\n");
         appendFeature(out, "Riss", r.optJSONObject("riss"));
         appendFeature(out, "Putz/Oberfläche", r.optJSONObject("putz_oder_oberflaechenschaden"));
         appendFeature(out, "Offene Stelle", r.optJSONObject("offene_stelle"));
@@ -165,7 +170,7 @@ public class MainActivity extends Activity {
             out.append('\n');
         }
 
-        out.append("\nMesswerte und Kalkulationsmengen bleiben bis zur bestätigten Messwert-Übernahme unverändert.");
+        out.append("\nMesswerte bleiben unverändert. Bestätigte Werte mit dem Mengen-Button übernehmen.");
         status.setText(out.toString());
     }
 
@@ -176,6 +181,62 @@ public class MainActivity extends Activity {
         String beschreibung = feature.optString("beschreibung", "");
         if (!beschreibung.isEmpty()) out.append(" – ").append(beschreibung);
         out.append('\n');
+    }
+
+    private void calculateConfirmedQuantities() {
+        status.setText("Bestätigte Messwerte werden validiert und berechnet …");
+        try {
+            JSONObject measurements = new JSONObject();
+            measurements.put("grundflaeche_m2", d("grundflaeche"));
+            measurements.put("raumumfang_m", d("raumumfang"));
+            measurements.put("raumhoehe_m", d("raumhoehe"));
+            measurements.put("oeffnungen_m2", d("oeffnungen"));
+            measurements.put("anstriche", (int) d("anstriche"));
+            measurements.put("risse_lfm", d("risse"));
+            measurements.put("acrylfugen_lfm", d("acrylfugen"));
+            measurements.put("punktuell_m2", d("punktuell"));
+            measurements.put("wandanschluss_lfm", d("wandanschluss"));
+            measurements.put("deckenanschluss_lfm", d("deckenanschluss"));
+            measurements.put("ausbruch_m2", d("ausbruch"));
+
+            new Thread(() -> {
+                try {
+                    JSONObject q = OpenAiAnalyzer.calculateQuantities(measurements);
+                    runOnUiThread(() -> applyCalculatedQuantities(q));
+                } catch (Exception e) {
+                    runOnUiThread(() -> status.setText("Mengenfehler: " + e.getMessage() + "\nIst Tailscale verbunden und sind die Messwerte plausibel?"));
+                }
+            }).start();
+        } catch (Exception e) {
+            status.setText("Eingabefehler: " + e.getMessage());
+        }
+    }
+
+    private void applyCalculatedQuantities(JSONObject q) {
+        putIfNumber("grundflaeche", q, "grundflaeche_m2");
+        putIfNumber("raumumfang", q, "raumumfang_m");
+        putIfNumber("raumhoehe", q, "raumhoehe_m");
+        putIfNumber("oeffnungen", q, "oeffnungen_m2");
+        putIfNumber("anstriche", q, "anstriche");
+        putIfNumber("risse", q, "risse_lfm");
+        putIfNumber("acrylfugen", q, "acrylfugen_lfm");
+        putIfNumber("punktuell", q, "punktuell_m2");
+        putIfNumber("wandanschluss", q, "wandanschluss_lfm");
+        putIfNumber("deckenanschluss", q, "deckenanschluss_lfm");
+        putIfNumber("ausbruch", q, "ausbruch_m2");
+
+        double brutto = q.optDouble("wandflaeche_brutto_m2", Double.NaN);
+        double netto = q.optDouble("wandflaeche_netto_m2", Double.NaN);
+        double anstrich = q.optDouble("anstrichflaeche_wand_m2", Double.NaN);
+
+        status.setText(String.format(
+                java.util.Locale.GERMANY,
+                "Sichere Mengen übernommen.\nWandfläche brutto: %.2f m²\nWandfläche netto: %.2f m²\nWand-Anstrichfläche bei %d Anstrichen: %.2f m²\nDie übernommenen Werte fließen beim Excel-Export in die Kalkulation ein.",
+                brutto,
+                netto,
+                (int) d("anstriche"),
+                anstrich
+        ));
     }
 
     private void exportExcel() {
