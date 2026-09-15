@@ -50,11 +50,12 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         int p = dp(16);
-        root.setPadding(p, p, p, p);
+        root.setPadding(p, p, p, dp(96));
         scroll.addView(root);
 
-        TextView title = text("Maler Aufmaß & Kalkulation", 24, true);
+        TextView title = text("Maler-KI Aufmaß", 24, true);
         root.addView(title);
+        root.addView(text("Release 1.0", 13, true));
         root.addView(text("Foto analysieren, sichere Messwerte bestätigen und automatisch in die Kalkulation übernehmen.", 15, false));
 
         preview = new ImageView(this);
@@ -124,6 +125,7 @@ public class MainActivity extends Activity {
         export.setOnClickListener(v -> exportExcel());
 
         status = text("Bereit. Für KI und Mengenberechnung muss Tailscale verbunden sein.", 14, false);
+        status.setPadding(0, dp(8), 0, dp(48));
         root.addView(status);
         return scroll;
     }
