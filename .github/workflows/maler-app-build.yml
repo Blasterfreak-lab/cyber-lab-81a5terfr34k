@@ -18,15 +18,55 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
+
       - name: Rebuild generated MainActivity
         run: |
           mkdir -p maler-app/app/src/main/java/de/maler/aufmass
           cat maler-app/.buildsrc/MainActivity.part1 maler-app/.buildsrc/MainActivity.part2 > maler-app/app/src/main/java/de/maler/aufmass/MainActivity.java
-      - name: Build debug APK
+
+      - name: Build unsigned release APK
         working-directory: maler-app
-        run: gradle :app:assembleDebug --stacktrace
-      - name: Upload APK
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Sign release APK
+        shell: bash
+        env:
+          MALER_RELEASE_KEYSTORE_BASE64: ${{ secrets.MALER_RELEASE_KEYSTORE_BASE64 }}
+          MALER_RELEASE_STORE_PASSWORD: ${{ secrets.MALER_RELEASE_STORE_PASSWORD }}
+          MALER_RELEASE_KEY_ALIAS: ${{ secrets.MALER_RELEASE_KEY_ALIAS }}
+          MALER_RELEASE_KEY_PASSWORD: ${{ secrets.MALER_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$MALER_RELEASE_KEYSTORE_BASE64"
+          test -n "$MALER_RELEASE_STORE_PASSWORD"
+          test -n "$MALER_RELEASE_KEY_ALIAS"
+          test -n "$MALER_RELEASE_KEY_PASSWORD"
+
+          SIGN_DIR="$RUNNER_TEMP/maler-signing"
+          mkdir -p "$SIGN_DIR"
+          KEYSTORE="$SIGN_DIR/maler-release.jks"
+          printf '%s' "$MALER_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+
+          UNSIGNED_APK="maler-app/app/build/outputs/apk/release/app-release-unsigned.apk"
+          SIGNED_APK="maler-app/app/build/outputs/apk/release/Maler-KI-Aufmass-Release-1.1.apk"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+
+          test -f "$UNSIGNED_APK"
+          test -x "$APKSIGNER"
+
+          "$APKSIGNER" sign \
+            --ks "$KEYSTORE" \
+            --ks-key-alias "$MALER_RELEASE_KEY_ALIAS" \
+            --ks-pass env:MALER_RELEASE_STORE_PASSWORD \
+            --key-pass env:MALER_RELEASE_KEY_PASSWORD \
+            --out "$SIGNED_APK" \
+            "$UNSIGNED_APK"
+
+          "$APKSIGNER" verify --verbose --print-certs "$SIGNED_APK"
+
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: MalerAufmass-debug-apk
-          path: maler-app/app/build/outputs/apk/debug/app-debug.apk
+          name: MalerAufmass-release-apk
+          path: maler-app/app/build/outputs/apk/release/Maler-KI-Aufmass-Release-1.1.apk
