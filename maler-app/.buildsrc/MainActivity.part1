@@ -37,8 +37,6 @@ public class MainActivity extends Activity {
     private TextView status;
 
     private final Map<String, EditText> fields = new LinkedHashMap<>();
-    private EditText apiKey;
-    private EditText model;
     private Spinner quality;
 
     @Override
@@ -57,7 +55,7 @@ public class MainActivity extends Activity {
 
         TextView title = text("Maler Aufmaß & Kalkulation", 24, true);
         root.addView(title);
-        root.addView(text("Foto aufnehmen oder auswählen, KI-Ergebnis kontrollieren und anschließend in die vorhandene Excel-Kalkulation schreiben.", 15, false));
+        root.addView(text("Foto aufnehmen oder auswählen, KI-Beobachtungen kontrollieren und anschließend sichere Messwerte in die Kalkulation übernehmen.", 15, false));
 
         preview = new ImageView(this);
         preview.setAdjustViewBounds(true);
@@ -78,13 +76,8 @@ public class MainActivity extends Activity {
             startActivityForResult(i, REQ_GALLERY);
         });
 
-        root.addView(section("KI-Bildanalyse"));
-        apiKey = edit("OpenAI API-Key (wird nicht gespeichert)", true);
-        apiKey.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        root.addView(apiKey);
-        model = edit("Modell", false);
-        model.setText("gpt-5.4-mini");
-        root.addView(model);
+        root.addView(section("KI-Bildanalyse über Maler-KI"));
+        root.addView(text("Geschützt über Tailscale. Die KI trägt aus einem Foto keine geschätzten Meter- oder m²-Werte ein.", 14, false));
         Button analyze = button("Bild analysieren");
         root.addView(analyze);
         analyze.setOnClickListener(v -> analyzeImage());
@@ -125,7 +118,7 @@ public class MainActivity extends Activity {
         root.addView(export);
         export.setOnClickListener(v -> exportExcel());
 
-        status = text("Bereit.", 14, false);
+        status = text("Bereit. Für die KI-Analyse muss Tailscale verbunden sein.", 14, false);
         root.addView(status);
         return scroll;
     }
@@ -135,44 +128,54 @@ public class MainActivity extends Activity {
             toast("Bitte zuerst ein Foto aufnehmen oder auswählen.");
             return;
         }
-        if (apiKey.getText().toString().trim().isEmpty()) {
-            toast("Bitte für den MVP einen API-Key eingeben. Er wird nicht gespeichert.");
-            return;
-        }
-        status.setText("Bild wird analysiert …");
+        status.setText("Bild wird über Maler-KI analysiert …");
         new Thread(() -> {
             try {
-                JSONObject r = OpenAiAnalyzer.analyze(currentBitmap, apiKey.getText().toString(), model.getText().toString());
+                JSONObject r = OpenAiAnalyzer.analyze(currentBitmap);
                 runOnUiThread(() -> applyAnalysis(r));
             } catch (Exception e) {
-                runOnUiThread(() -> status.setText("Analysefehler: " + e.getMessage()));
+                runOnUiThread(() -> status.setText("Analysefehler: " + e.getMessage() + "\nIst Tailscale verbunden?"));
             }
         }).start();
     }
 
     private void applyAnalysis(JSONObject r) {
-        putIfNumber("bohrloecher", r, "bohrloecher_stueck");
-        putIfNumber("risse", r, "risse_lfm");
-        putIfNumber("acrylfugen", r, "acrylfugen_lfm");
-        putIfNumber("punktuell", r, "punktuell_m2");
-        putIfNumber("wandanschluss", r, "wandanschluss_lfm");
-        putIfNumber("deckenanschluss", r, "deckenanschluss_lfm");
-        putIfNumber("ausbruch", r, "ausbruch_m2");
-        putIfNumber("armierungsstreifen", r, "armierungsstreifen_lfm");
-        putIfNumber("armierung_flaechig", r, "armierung_flaechig_m2");
-        putIfNumber("q2", r, "q2_m2");
-        putIfNumber("q3", r, "q3_m2");
-        putIfNumber("q4", r, "q4_m2");
+        StringBuilder out = new StringBuilder("KI-Beobachtungen – keine Mengen automatisch übernommen:\n\n");
+        appendFeature(out, "Riss", r.optJSONObject("riss"));
+        appendFeature(out, "Putz/Oberfläche", r.optJSONObject("putz_oder_oberflaechenschaden"));
+        appendFeature(out, "Offene Stelle", r.optJSONObject("offene_stelle"));
 
-        String q = r.optString("qualitaet", "");
-        if (q.equals("Q2")) quality.setSelection(0);
-        else if (q.equals("Q3")) quality.setSelection(1);
-        else if (q.equals("Q4")) quality.setSelection(2);
+        JSONObject untergrund = r.optJSONObject("sichtbarer_untergrund");
+        if (untergrund != null) {
+            out.append("Untergrund: ")
+                    .append(untergrund.optString("status", "nicht_bestimmbar"));
+            String typ = untergrund.optString("typ", "unbekannt");
+            if (!"unbekannt".equals(typ)) out.append(" (").append(typ).append(")");
+            String beschreibung = untergrund.optString("beschreibung", "");
+            if (!beschreibung.isEmpty()) out.append(" – ").append(beschreibung);
+            out.append('\n');
+        }
 
-        double confidence = r.optDouble("confidence", Double.NaN);
-        String notes = r.optString("notes", "");
-        String c = Double.isNaN(confidence) ? "" : String.format(java.util.Locale.GERMANY, "Sicherheit %.0f%%. ", confidence * 100.0);
-        status.setText(c + notes + "\nBitte alle gelben/übernommenen Werte vor Export fachlich prüfen.");
+        JSONObject anschluss = r.optJSONObject("ehemaliger_wand_oder_deckenanschluss");
+        if (anschluss != null) {
+            out.append("Ehemaliger Wand-/Deckenanschluss: ")
+                    .append(anschluss.optString("status", "nicht_bestimmbar"));
+            String beleg = anschluss.optString("beleg", "");
+            if (!beleg.isEmpty()) out.append(" – ").append(beleg);
+            out.append('\n');
+        }
+
+        out.append("\nMesswerte und Kalkulationsmengen bleiben bis zur bestätigten Messwert-Übernahme unverändert.");
+        status.setText(out.toString());
+    }
+
+    private void appendFeature(StringBuilder out, String label, JSONObject feature) {
+        if (feature == null) return;
+        out.append(label).append(": ")
+                .append(feature.optString("status", "nicht_bestimmbar"));
+        String beschreibung = feature.optString("beschreibung", "");
+        if (!beschreibung.isEmpty()) out.append(" – ").append(beschreibung);
+        out.append('\n');
     }
 
     private void exportExcel() {
