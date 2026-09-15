@@ -65,7 +65,13 @@
     }
 
     private void addNumber(LinearLayout root, String key, String label, String value) {
-        EditText e = edit(label, false);
+        TextView fieldLabel = text(label, 13, true);
+        fieldLabel.setPadding(0, dp(8), 0, 0);
+        root.addView(fieldLabel);
+
+        EditText e = edit("", false);
+        e.setContentDescription(label);
+        e.setSingleLine(true);
         e.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         e.setText(value);
         fields.put(key, e);
@@ -82,7 +88,7 @@
         EditText e = new EditText(this);
         e.setHint(hint);
         e.setTextSize(16);
-        e.setPadding(dp(8), dp(8), dp(8), dp(8));
+        e.setPadding(dp(8), dp(6), dp(8), dp(6));
         return e;
     }
 
