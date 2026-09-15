@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 final class OpenAiAnalyzer {
     private static final String ANALYZE_URL = "https://homeserver.tail8694ff.ts.net/analyze-photo";
+    private static final String CALCULATE_URL = "https://homeserver.tail8694ff.ts.net/calculate-quantities";
 
     private OpenAiAnalyzer() {}
 
@@ -40,18 +41,43 @@ final class OpenAiAnalyzer {
             out.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
         }
 
+        JSONObject root = readJsonResponse(con, "Maler-KI Bildanalyse");
+        if (!"ok".equals(root.optString("status")) || !root.has("analysis")) {
+            throw new Exception("Unerwartete Antwort der Maler-KI Bildanalyse.");
+        }
+        return root.getJSONObject("analysis");
+    }
+
+    static JSONObject calculateQuantities(JSONObject measurements) throws Exception {
+        HttpURLConnection con = (HttpURLConnection) new URL(CALCULATE_URL).openConnection();
+        con.setRequestMethod("POST");
+        con.setConnectTimeout(20000);
+        con.setReadTimeout(60000);
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        con.setRequestProperty("Accept", "application/json");
+
+        byte[] body = measurements.toString().getBytes(StandardCharsets.UTF_8);
+        con.setFixedLengthStreamingMode(body.length);
+        try (OutputStream out = con.getOutputStream()) {
+            out.write(body);
+        }
+
+        JSONObject root = readJsonResponse(con, "Maler-KI Mengenberechnung");
+        if (!"ok".equals(root.optString("status")) || !root.has("quantities")) {
+            throw new Exception("Unerwartete Antwort der Maler-KI Mengenberechnung.");
+        }
+        return root.getJSONObject("quantities");
+    }
+
+    private static JSONObject readJsonResponse(HttpURLConnection con, String label) throws Exception {
         int code = con.getResponseCode();
         InputStream stream = code >= 200 && code < 300 ? con.getInputStream() : con.getErrorStream();
         String response = new String(readAll(stream), StandardCharsets.UTF_8);
         if (code < 200 || code >= 300) {
-            throw new Exception("Maler-KI API " + code + ": " + response);
+            throw new Exception(label + " " + code + ": " + response);
         }
-
-        JSONObject root = new JSONObject(response);
-        if (!"ok".equals(root.optString("status")) || !root.has("analysis")) {
-            throw new Exception("Unerwartete Antwort der Maler-KI API.");
-        }
-        return root.getJSONObject("analysis");
+        return new JSONObject(response);
     }
 
     private static byte[] readAll(InputStream in) throws Exception {
