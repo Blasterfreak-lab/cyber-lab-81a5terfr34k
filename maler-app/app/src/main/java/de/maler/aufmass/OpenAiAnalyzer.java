@@ -12,10 +12,21 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 final class OpenAiAnalyzer {
-    private static final String ANALYZE_URL = "https://homeserver.tail8694ff.ts.net/analyze-photo";
-    private static final String CALCULATE_URL = "https://homeserver.tail8694ff.ts.net/calculate-quantities";
+    private static final String BASE_URL = "https://homeserver.tail8694ff.ts.net";
+    private static final String HEALTH_URL = BASE_URL + "/health";
+    private static final String OLLAMA_CHECK_URL = BASE_URL + "/ollama-check";
+    private static final String ANALYZE_URL = BASE_URL + "/analyze-photo";
+    private static final String CALCULATE_URL = BASE_URL + "/calculate-quantities";
 
     private OpenAiAnalyzer() {}
+
+    static JSONObject health() throws Exception {
+        return getCheck(HEALTH_URL, "Maler-KI Servercheck");
+    }
+
+    static JSONObject ollamaCheck() throws Exception {
+        return getCheck(OLLAMA_CHECK_URL, "Maler-KI Ollama-Check");
+    }
 
     static JSONObject analyze(Bitmap source) throws Exception {
         Bitmap image = downscale(source, 1600);
@@ -68,6 +79,30 @@ final class OpenAiAnalyzer {
             throw new Exception("Unerwartete Antwort der Maler-KI Mengenberechnung.");
         }
         return root.getJSONObject("quantities");
+    }
+
+    private static JSONObject getCheck(String url, String label) throws Exception {
+        HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+        con.setRequestMethod("GET");
+        con.setConnectTimeout(10000);
+        con.setReadTimeout(30000);
+        con.setRequestProperty("Accept", "application/json");
+
+        int code = con.getResponseCode();
+        InputStream stream = code >= 200 && code < 300 ? con.getInputStream() : con.getErrorStream();
+        String response = new String(readAll(stream), StandardCharsets.UTF_8);
+        if (code < 200 || code >= 300) {
+            throw new Exception(label + " " + code + ": " + response);
+        }
+
+        try {
+            return new JSONObject(response);
+        } catch (Exception ignored) {
+            JSONObject fallback = new JSONObject();
+            fallback.put("raw", response);
+            fallback.put("http_code", code);
+            return fallback;
+        }
     }
 
     private static JSONObject readJsonResponse(HttpURLConnection con, String label) throws Exception {
