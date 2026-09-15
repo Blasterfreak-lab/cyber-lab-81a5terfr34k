@@ -35,6 +35,7 @@ public class MainActivity extends Activity {
     private byte[] pendingXlsx;
     private ImageView preview;
     private TextView status;
+    private TextView systemStatus;
 
     private final Map<String, EditText> fields = new LinkedHashMap<>();
     private Spinner quality;
@@ -55,8 +56,15 @@ public class MainActivity extends Activity {
 
         TextView title = text("Maler-KI Aufmaß", 24, true);
         root.addView(title);
-        root.addView(text("Release 1.0", 13, true));
+        root.addView(text("Release 1.1", 13, true));
         root.addView(text("Foto analysieren, sichere Messwerte bestätigen und automatisch in die Kalkulation übernehmen.", 15, false));
+
+        root.addView(section("Systemstatus"));
+        systemStatus = text("Noch nicht geprüft. Tailscale muss verbunden sein.", 14, false);
+        root.addView(systemStatus);
+        Button connectionCheck = button("Verbindung prüfen");
+        root.addView(connectionCheck);
+        connectionCheck.setOnClickListener(v -> checkSystemStatus());
 
         preview = new ImageView(this);
         preview.setAdjustViewBounds(true);
@@ -128,6 +136,55 @@ public class MainActivity extends Activity {
         status.setPadding(0, dp(8), 0, dp(48));
         root.addView(status);
         return scroll;
+    }
+
+    private void checkSystemStatus() {
+        systemStatus.setText("Prüfe Homeserver/FastAPI …");
+        new Thread(() -> {
+            String result;
+            try {
+                OpenAiAnalyzer.health();
+                String serverLine = "✓ Homeserver/FastAPI erreichbar";
+                String ollamaLine;
+                try {
+                    JSONObject ollama = OpenAiAnalyzer.ollamaCheck();
+                    if (responseLooksHealthy(ollama)) {
+                        ollamaLine = "✓ KI-PC/Ollama erreichbar";
+                    } else {
+                        ollamaLine = "✗ KI-PC/Ollama meldet einen Fehler";
+                    }
+                } catch (Exception e) {
+                    ollamaLine = "✗ KI-PC/Ollama nicht erreichbar: " + shortMessage(e);
+                }
+                result = serverLine + "\n" + ollamaLine;
+            } catch (Exception e) {
+                result = "✗ Homeserver/FastAPI nicht erreichbar: " + shortMessage(e)
+                        + "\n– KI-PC/Ollama nicht geprüft";
+            }
+
+            String finalResult = result;
+            runOnUiThread(() -> systemStatus.setText(finalResult));
+        }).start();
+    }
+
+    private boolean responseLooksHealthy(JSONObject response) {
+        if (response.has("ok") && !response.optBoolean("ok", false)) return false;
+        if (response.has("reachable") && !response.optBoolean("reachable", false)) return false;
+
+        String s = response.optString("status", "").trim().toLowerCase(java.util.Locale.ROOT);
+        return !("error".equals(s)
+                || "failed".equals(s)
+                || "offline".equals(s)
+                || "unreachable".equals(s)
+                || "not_ok".equals(s)
+                || "not-ok".equals(s));
+    }
+
+    private String shortMessage(Exception e) {
+        String s = e.getMessage();
+        if (s == null || s.trim().isEmpty()) return e.getClass().getSimpleName();
+        s = s.replace('\n', ' ').replace('\r', ' ').trim();
+        return s.length() <= 140 ? s : s.substring(0, 137) + "…";
     }
 
     private void analyzeImage() {
