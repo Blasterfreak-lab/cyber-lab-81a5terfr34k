@@ -11,19 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
-      - name: Rebuild generated sources and Excel template
+      - name: Rebuild generated MainActivity
         run: |
-          mkdir -p maler-app/app/src/main/java/de/maler/aufmass maler-app/app/src/main/assets
+          mkdir -p maler-app/app/src/main/java/de/maler/aufmass
           cat maler-app/.buildsrc/MainActivity.part1 maler-app/.buildsrc/MainActivity.part2 > maler-app/app/src/main/java/de/maler/aufmass/MainActivity.java
-          cat maler-app/.buildsrc/template.b64.1 maler-app/.buildsrc/template.b64.2 maler-app/.buildsrc/template.b64.3 maler-app/.buildsrc/template.b64.4 | base64 -d > maler-app/app/src/main/assets/Maler_Kalkulation_Vorlage.xlsx
-          unzip -t maler-app/app/src/main/assets/Maler_Kalkulation_Vorlage.xlsx
       - name: Build debug APK
         working-directory: maler-app
         run: gradle :app:assembleDebug --stacktrace
