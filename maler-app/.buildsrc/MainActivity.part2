@@ -1,0 +1,133 @@
+                    d("grundflaeche"), d("raumumfang"), d("raumhoehe"), d("oeffnungen"), (int) d("anstriche"));
+            Map<String, String> sp = new LinkedHashMap<>();
+            sp.put("B5", XlsxTemplateWriter.num(d("bohrloecher")));
+            sp.put("B6", XlsxTemplateWriter.num(d("risse")));
+            sp.put("B7", XlsxTemplateWriter.num(d("acrylfugen")));
+            sp.put("B8", XlsxTemplateWriter.num(d("punktuell")));
+            sp.put("B9", XlsxTemplateWriter.num(d("q2")));
+            sp.put("B10", XlsxTemplateWriter.num(d("q3")));
+            sp.put("B11", XlsxTemplateWriter.num(d("q4")));
+            sp.put("B15", XlsxTemplateWriter.num(d("wandanschluss")));
+            sp.put("B16", XlsxTemplateWriter.num(d("deckenanschluss")));
+            sp.put("B17", XlsxTemplateWriter.num(d("ausbruch")));
+            sp.put("B18", XlsxTemplateWriter.num(d("armierungsstreifen")));
+            sp.put("B19", XlsxTemplateWriter.num(d("armierung_flaechig")));
+            sp.put("B20", XlsxTemplateWriter.num(d("q3_wandabbruch")));
+            sp.put("B21", XlsxTemplateWriter.num(d("q4_wandabbruch")));
+            sp.put("B25", quality.getSelectedItem().toString());
+            pendingXlsx = XlsxTemplateWriter.build(this, input, sp);
+
+            Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            i.putExtra(Intent.EXTRA_TITLE, "Maler_Kalkulation_Aufmass.xlsx");
+            startActivityForResult(i, REQ_SAVE);
+        } catch (Exception e) {
+            status.setText("Excel-Fehler: " + e.getMessage());
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null) return;
+        try {
+            if (requestCode == REQ_GALLERY) {
+                Uri uri = data.getData();
+                try (InputStream in = getContentResolver().openInputStream(uri)) {
+                    currentBitmap = BitmapFactory.decodeStream(in);
+                }
+                preview.setImageBitmap(currentBitmap);
+                status.setText("Foto geladen. Bereit zur Analyse.");
+            } else if (requestCode == REQ_CAMERA) {
+                Object extra = data.getExtras() == null ? null : data.getExtras().get("data");
+                if (extra instanceof Bitmap) {
+                    currentBitmap = (Bitmap) extra;
+                    preview.setImageBitmap(currentBitmap);
+                    status.setText("Kamerafoto geladen. Bereit zur Analyse.");
+                }
+            } else if (requestCode == REQ_SAVE && pendingXlsx != null) {
+                try (OutputStream out = getContentResolver().openOutputStream(data.getData())) {
+                    out.write(pendingXlsx);
+                }
+                status.setText("Excel-Datei gespeichert. Formeln werden beim Öffnen in Excel neu berechnet.");
+                pendingXlsx = null;
+            }
+        } catch (Exception e) {
+            status.setText("Dateifehler: " + e.getMessage());
+        }
+    }
+
+    private void putIfNumber(String field, JSONObject json, String key) {
+        if (!json.has(key) || json.isNull(key)) return;
+        Object v = json.opt(key);
+        if (v instanceof Number) fields.get(field).setText(v.toString());
+    }
+
+    private void addNumber(LinearLayout root, String key, String label, String value) {
+        TextView fieldLabel = text(label, 13, true);
+        fieldLabel.setPadding(0, dp(8), 0, 0);
+        root.addView(fieldLabel);
+
+        EditText e = edit("", false);
+        e.setContentDescription(label);
+        e.setSingleLine(true);
+        e.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        e.setText(value);
+        fields.put(key, e);
+        root.addView(e);
+    }
+
+    private double d(String key) {
+        String s = fields.get(key).getText().toString().trim().replace(',', '.');
+        if (s.isEmpty()) return 0;
+        return Double.parseDouble(s);
+    }
+
+    private EditText edit(String hint, boolean password) {
+        EditText e = new EditText(this);
+        e.setHint(hint);
+        e.setTextSize(16);
+        e.setPadding(dp(8), dp(6), dp(8), dp(6));
+        return e;
+    }
+
+    private TextView section(String s) {
+        TextView t = text(s, 18, true);
+        t.setPadding(0, dp(18), 0, dp(6));
+        return t;
+    }
+
+    private TextView text(String s, int size, boolean bold) {
+        TextView t = new TextView(this);
+        t.setText(s);
+        t.setTextSize(size);
+        if (bold) t.setTypeface(null, android.graphics.Typeface.BOLD);
+        t.setPadding(0, dp(4), 0, dp(6));
+        return t;
+    }
+
+    private Button button(String s) {
+        Button b = new Button(this);
+        b.setText(s);
+        return b;
+    }
+
+    private LinearLayout row() {
+        LinearLayout l = new LinearLayout(this);
+        l.setOrientation(LinearLayout.HORIZONTAL);
+        return l;
+    }
+
+    private LinearLayout.LayoutParams weight() {
+        return new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+    }
+
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+
+    private void toast(String s) {
+        Toast.makeText(this, s, Toast.LENGTH_LONG).show();
+    }
+}

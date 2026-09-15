@@ -1,0 +1,303 @@
+package de.maler.aufmass;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.Bundle;
+import android.provider.MediaStore;
+import android.text.InputType;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.json.JSONObject;
+
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class MainActivity extends Activity {
+    private static final int REQ_GALLERY = 1001;
+    private static final int REQ_CAMERA = 1002;
+    private static final int REQ_SAVE = 1003;
+
+    private Bitmap currentBitmap;
+    private byte[] pendingXlsx;
+    private ImageView preview;
+    private TextView status;
+    private TextView systemStatus;
+
+    private final Map<String, EditText> fields = new LinkedHashMap<>();
+    private Spinner quality;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(buildUi());
+    }
+
+    private View buildUi() {
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int p = dp(16);
+        root.setPadding(p, p, p, dp(96));
+        scroll.addView(root);
+
+        TextView title = text("Maler-KI Aufmaß", 24, true);
+        root.addView(title);
+        root.addView(text("Release 1.1", 13, true));
+        root.addView(text("Foto analysieren, sichere Messwerte bestätigen und automatisch in die Kalkulation übernehmen.", 15, false));
+
+        root.addView(section("Systemstatus"));
+        systemStatus = text("Noch nicht geprüft. Tailscale muss verbunden sein.", 14, false);
+        root.addView(systemStatus);
+        Button connectionCheck = button("Verbindung prüfen");
+        root.addView(connectionCheck);
+        connectionCheck.setOnClickListener(v -> checkSystemStatus());
+
+        preview = new ImageView(this);
+        preview.setAdjustViewBounds(true);
+        preview.setMinimumHeight(dp(180));
+        root.addView(preview);
+
+        LinearLayout photoButtons = row();
+        Button camera = button("Kamera");
+        Button gallery = button("Galerie");
+        photoButtons.addView(camera, weight());
+        photoButtons.addView(gallery, weight());
+        root.addView(photoButtons);
+        camera.setOnClickListener(v -> startActivityForResult(new Intent(MediaStore.ACTION_IMAGE_CAPTURE), REQ_CAMERA));
+        gallery.setOnClickListener(v -> {
+            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.setType("image/*");
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            startActivityForResult(i, REQ_GALLERY);
+        });
+
+        root.addView(section("KI-Bildanalyse über Maler-KI"));
+        root.addView(text("Geschützt über Tailscale. Die KI trägt aus einem Foto keine geschätzten Meter- oder m²-Werte ein.", 14, false));
+        Button analyze = button("Bild analysieren");
+        root.addView(analyze);
+        analyze.setOnClickListener(v -> analyzeImage());
+
+        root.addView(section("Raumdaten – sichere Messwerte"));
+        addNumber(root, "grundflaeche", "Grundfläche m²", "50");
+        addNumber(root, "raumumfang", "Raumumfang m", "30");
+        addNumber(root, "raumhoehe", "Raumhöhe m", "2.5");
+        addNumber(root, "oeffnungen", "Fenster/Türen Abzug m²", "10");
+        addNumber(root, "anstriche", "Anzahl Anstriche", "2");
+
+        root.addView(section("Allgemeine Spachtelarbeiten"));
+        addNumber(root, "bohrloecher", "Bohr-/Dübellöcher Stück", "10");
+        addNumber(root, "risse", "Risse / kleine Schadstellen lfm", "5");
+        addNumber(root, "acrylfugen", "Acrylfugen / Anschlüsse lfm", "10");
+        addNumber(root, "punktuell", "Punktuelle Flächenspachtelung m²", "5");
+        addNumber(root, "q2", "Vollflächig Q2 m²", "0");
+        addNumber(root, "q3", "Vollflächig Q3 m²", "0");
+        addNumber(root, "q4", "Vollflächig Q4 m²", "0");
+
+        root.addView(section("Sanierung nach entfernten Zwischenwänden"));
+        addNumber(root, "wandanschluss", "Ehemaliger Wandanschluss – grob schließen lfm", "0");
+        addNumber(root, "deckenanschluss", "Ehemaliger Deckenanschluss – grob schließen lfm", "0");
+        addNumber(root, "ausbruch", "Größere Putz-/Ausbruchstellen m²", "0");
+        addNumber(root, "armierungsstreifen", "Armierungsstreifen Materialübergänge lfm", "0");
+        addNumber(root, "armierung_flaechig", "Armierungsgewebe flächig m²", "0");
+        addNumber(root, "q3_wandabbruch", "Q3-Endspachtelung betroffene Flächen m²", "0");
+        addNumber(root, "q4_wandabbruch", "Q4-Endspachtelung betroffene Flächen m²", "0");
+
+        Button calculate = button("Sichere Messwerte berechnen & übernehmen");
+        root.addView(calculate);
+        calculate.setOnClickListener(v -> calculateConfirmedQuantities());
+        root.addView(text("Die Berechnung ist deterministisch: Der Server validiert die bestätigten Werte und berechnet Wandflächen ohne KI-Schätzung.", 13, false));
+
+        TextView qLabel = text("Geplante Endqualität", 14, true);
+        root.addView(qLabel);
+        quality = new Spinner(this);
+        quality.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, new String[]{"Q2", "Q3", "Q4"}));
+        quality.setSelection(1);
+        root.addView(quality);
+
+        Button export = button("Excel-Kalkulation exportieren");
+        root.addView(export);
+        export.setOnClickListener(v -> exportExcel());
+
+        status = text("Bereit. Für KI und Mengenberechnung muss Tailscale verbunden sein.", 14, false);
+        status.setPadding(0, dp(8), 0, dp(48));
+        root.addView(status);
+        return scroll;
+    }
+
+    private void checkSystemStatus() {
+        systemStatus.setText("Prüfe Homeserver/FastAPI …");
+        new Thread(() -> {
+            String result;
+            try {
+                OpenAiAnalyzer.health();
+                String serverLine = "✓ Homeserver/FastAPI erreichbar";
+                String ollamaLine;
+                try {
+                    JSONObject ollama = OpenAiAnalyzer.ollamaCheck();
+                    if (responseLooksHealthy(ollama)) {
+                        ollamaLine = "✓ KI-PC/Ollama erreichbar";
+                    } else {
+                        ollamaLine = "✗ KI-PC/Ollama meldet einen Fehler";
+                    }
+                } catch (Exception e) {
+                    ollamaLine = "✗ KI-PC/Ollama nicht erreichbar: " + shortMessage(e);
+                }
+                result = serverLine + "\n" + ollamaLine;
+            } catch (Exception e) {
+                result = "✗ Homeserver/FastAPI nicht erreichbar: " + shortMessage(e)
+                        + "\n– KI-PC/Ollama nicht geprüft";
+            }
+
+            String finalResult = result;
+            runOnUiThread(() -> systemStatus.setText(finalResult));
+        }).start();
+    }
+
+    private boolean responseLooksHealthy(JSONObject response) {
+        if (response.has("ok") && !response.optBoolean("ok", false)) return false;
+        if (response.has("reachable") && !response.optBoolean("reachable", false)) return false;
+
+        String s = response.optString("status", "").trim().toLowerCase(java.util.Locale.ROOT);
+        return !("error".equals(s)
+                || "failed".equals(s)
+                || "offline".equals(s)
+                || "unreachable".equals(s)
+                || "not_ok".equals(s)
+                || "not-ok".equals(s));
+    }
+
+    private String shortMessage(Exception e) {
+        String s = e.getMessage();
+        if (s == null || s.trim().isEmpty()) return e.getClass().getSimpleName();
+        s = s.replace('\n', ' ').replace('\r', ' ').trim();
+        return s.length() <= 140 ? s : s.substring(0, 137) + "…";
+    }
+
+    private void analyzeImage() {
+        if (currentBitmap == null) {
+            toast("Bitte zuerst ein Foto aufnehmen oder auswählen.");
+            return;
+        }
+        status.setText("Bild wird über Maler-KI analysiert …");
+        new Thread(() -> {
+            try {
+                JSONObject r = OpenAiAnalyzer.analyze(currentBitmap);
+                runOnUiThread(() -> applyAnalysis(r));
+            } catch (Exception e) {
+                runOnUiThread(() -> status.setText("Analysefehler: " + e.getMessage() + "\nIst Tailscale verbunden?"));
+            }
+        }).start();
+    }
+
+    private void applyAnalysis(JSONObject r) {
+        StringBuilder out = new StringBuilder("KI-Beobachtungen – keine Mengen aus dem Foto übernommen:\n\n");
+        appendFeature(out, "Riss", r.optJSONObject("riss"));
+        appendFeature(out, "Putz/Oberfläche", r.optJSONObject("putz_oder_oberflaechenschaden"));
+        appendFeature(out, "Offene Stelle", r.optJSONObject("offene_stelle"));
+
+        JSONObject untergrund = r.optJSONObject("sichtbarer_untergrund");
+        if (untergrund != null) {
+            out.append("Untergrund: ")
+                    .append(untergrund.optString("status", "nicht_bestimmbar"));
+            String typ = untergrund.optString("typ", "unbekannt");
+            if (!"unbekannt".equals(typ)) out.append(" (").append(typ).append(")");
+            String beschreibung = untergrund.optString("beschreibung", "");
+            if (!beschreibung.isEmpty()) out.append(" – ").append(beschreibung);
+            out.append('\n');
+        }
+
+        JSONObject anschluss = r.optJSONObject("ehemaliger_wand_oder_deckenanschluss");
+        if (anschluss != null) {
+            out.append("Ehemaliger Wand-/Deckenanschluss: ")
+                    .append(anschluss.optString("status", "nicht_bestimmbar"));
+            String beleg = anschluss.optString("beleg", "");
+            if (!beleg.isEmpty()) out.append(" – ").append(beleg);
+            out.append('\n');
+        }
+
+        out.append("\nMesswerte bleiben unverändert. Bestätigte Werte mit dem Mengen-Button übernehmen.");
+        status.setText(out.toString());
+    }
+
+    private void appendFeature(StringBuilder out, String label, JSONObject feature) {
+        if (feature == null) return;
+        out.append(label).append(": ")
+                .append(feature.optString("status", "nicht_bestimmbar"));
+        String beschreibung = feature.optString("beschreibung", "");
+        if (!beschreibung.isEmpty()) out.append(" – ").append(beschreibung);
+        out.append('\n');
+    }
+
+    private void calculateConfirmedQuantities() {
+        status.setText("Bestätigte Messwerte werden validiert und berechnet …");
+        try {
+            JSONObject measurements = new JSONObject();
+            measurements.put("grundflaeche_m2", d("grundflaeche"));
+            measurements.put("raumumfang_m", d("raumumfang"));
+            measurements.put("raumhoehe_m", d("raumhoehe"));
+            measurements.put("oeffnungen_m2", d("oeffnungen"));
+            measurements.put("anstriche", (int) d("anstriche"));
+            measurements.put("risse_lfm", d("risse"));
+            measurements.put("acrylfugen_lfm", d("acrylfugen"));
+            measurements.put("punktuell_m2", d("punktuell"));
+            measurements.put("wandanschluss_lfm", d("wandanschluss"));
+            measurements.put("deckenanschluss_lfm", d("deckenanschluss"));
+            measurements.put("ausbruch_m2", d("ausbruch"));
+
+            new Thread(() -> {
+                try {
+                    JSONObject q = OpenAiAnalyzer.calculateQuantities(measurements);
+                    runOnUiThread(() -> applyCalculatedQuantities(q));
+                } catch (Exception e) {
+                    runOnUiThread(() -> status.setText("Mengenfehler: " + e.getMessage() + "\nIst Tailscale verbunden und sind die Messwerte plausibel?"));
+                }
+            }).start();
+        } catch (Exception e) {
+            status.setText("Eingabefehler: " + e.getMessage());
+        }
+    }
+
+    private void applyCalculatedQuantities(JSONObject q) {
+        putIfNumber("grundflaeche", q, "grundflaeche_m2");
+        putIfNumber("raumumfang", q, "raumumfang_m");
+        putIfNumber("raumhoehe", q, "raumhoehe_m");
+        putIfNumber("oeffnungen", q, "oeffnungen_m2");
+        putIfNumber("anstriche", q, "anstriche");
+        putIfNumber("risse", q, "risse_lfm");
+        putIfNumber("acrylfugen", q, "acrylfugen_lfm");
+        putIfNumber("punktuell", q, "punktuell_m2");
+        putIfNumber("wandanschluss", q, "wandanschluss_lfm");
+        putIfNumber("deckenanschluss", q, "deckenanschluss_lfm");
+        putIfNumber("ausbruch", q, "ausbruch_m2");
+
+        double brutto = q.optDouble("wandflaeche_brutto_m2", Double.NaN);
+        double netto = q.optDouble("wandflaeche_netto_m2", Double.NaN);
+        double anstrich = q.optDouble("anstrichflaeche_wand_m2", Double.NaN);
+
+        status.setText(String.format(
+                java.util.Locale.GERMANY,
+                "Sichere Mengen übernommen.\nWandfläche brutto: %.2f m²\nWandfläche netto: %.2f m²\nWand-Anstrichfläche bei %d Anstrichen: %.2f m²\nDie übernommenen Werte fließen beim Excel-Export in die Kalkulation ein.",
+                brutto,
+                netto,
+                (int) d("anstriche"),
+                anstrich
+        ));
+    }
+
+    private void exportExcel() {
+        try {
+            Map<String, String> input = XlsxTemplateWriter.basicInputMap(
