@@ -2,6 +2,8 @@ name: Build Maler APK
 on:
   push:
     branches: ["maler-app-build"]
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
